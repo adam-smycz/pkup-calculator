@@ -6,18 +6,43 @@ Webowy kalkulator do wyliczania **50% KUP** dla okresu rozliczeniowego od 10. do
 
 - **Node.js ≥ 18** (testowane na 20.x)
 - **pnpm** (`npm i -g pnpm`)
-- **GitHub CLI** (`gh`) — używany lokalnie przez middleware Vite do odpytywania GitHuba
-- Aktywny **`gh auth login`** z tokenem, który ma scope'y:
-  - `repo` — żeby czytać PR-y w organizacji
-  - `read:org` — żeby zobaczyć listę członków orga (dropdown użytkownika)
+- **GitHub CLI (`gh`)** — to nie jest opcjonalne. Aplikacja **nie ma backendu** i odpytuje GitHuba przez lokalne `gh` z poziomu middleware Vite. Bez `gh` w PATH endpointy `/api/github-users` i `/api/github-prs` zwrócą 500.
 
-Sprawdź swoje uprawnienia:
+### Instalacja `gh` CLI
+
+```bash
+# macOS
+brew install gh
+
+# Linux (Debian/Ubuntu)
+sudo apt install gh
+
+# Windows
+winget install --id GitHub.cli
+```
+
+Pełna lista platform: <https://cli.github.com/>.
+
+### Logowanie i uprawnienia
+
+Po instalacji zaloguj się:
+
+```bash
+gh auth login
+```
+
+Token musi mieć scope'y:
+
+- `repo` — żeby czytać PR-y w organizacji
+- `read:org` — żeby zobaczyć listę członków orga (dropdown użytkownika)
+
+Sprawdź aktualne scope'y:
 
 ```bash
 gh auth status
 ```
 
-Jeśli brakuje scope'ów:
+Jeśli brakuje któregoś, dorzuć go:
 
 ```bash
 gh auth refresh -s repo,read:org
