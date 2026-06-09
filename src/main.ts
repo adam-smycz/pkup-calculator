@@ -1,5 +1,15 @@
-import { fetchPRs, loadPRs, type PullRequest } from './github';
+import { fetchPRs, fetchUsers, loadPRs, type PullRequest } from './github';
 import { exportXlsx } from './export';
+
+const USERNAME_KEY = 'pkup-username';
+
+function getUsername(): string {
+  return localStorage.getItem(USERNAME_KEY) ?? import.meta.env['VITE_USERNAME'] ?? 'adam-smycz';
+}
+
+function setUsername(username: string) {
+  localStorage.setItem(USERNAME_KEY, username);
+}
 
 const YEARS = [2026, 2027, 2028, 2029, 2030];
 
@@ -71,31 +81,32 @@ function getDaysForPkup(year: number, monthSlug: string): Date[] {
 
 type DayType = 'praca' | 'urlop' | 'l4';
 
-function storageKey(year: number, month: string) {
-  return `pkup:${year}/${month}`;
+function storageKey(username: string, year: number, month: string) {
+  return `pkup:${username}:${year}/${month}`;
 }
 
-function loadState(year: number, month: string): Record<string, DayType> {
+function loadState(username: string, year: number, month: string): Record<string, DayType> {
   try {
-    return JSON.parse(localStorage.getItem(storageKey(year, month)) ?? '{}');
+    return JSON.parse(localStorage.getItem(storageKey(username, year, month)) ?? '{}');
   } catch {
     return {};
   }
 }
 
-function saveState(year: number, month: string, state: Record<string, DayType>) {
-  localStorage.setItem(storageKey(year, month), JSON.stringify(state));
+function saveState(username: string, year: number, month: string, state: Record<string, DayType>) {
+  localStorage.setItem(storageKey(username, year, month), JSON.stringify(state));
 }
 
 function renderDays(year: number, monthSlug: string) {
   const main = document.querySelector('main')!;
+  const username = getUsername();
   const days = getDaysForPkup(year, monthSlug);
 
   const yearsInRange = [...new Set(days.map(d => d.getFullYear()))];
   const holidays = yearsInRange.flatMap(y => [...(holidayCache.get(y) ?? [])]);
   const holidaySet = new Set(holidays);
 
-  const saved = loadState(year, monthSlug);
+  const saved = loadState(username, year, monthSlug);
 
   const totalWorkingDays = days.filter(d => {
     const iso = toIso(d);
@@ -113,7 +124,7 @@ function renderDays(year: number, monthSlug: string) {
   // Build a map of ISO date → PRs merged on that day
   const isoStart = toIso(days[0]);
   const isoEnd   = toIso(days[days.length - 1]);
-  const cachedPRs = loadPRs(isoStart, isoEnd) ?? [];
+  const cachedPRs = loadPRs(username, isoStart, isoEnd) ?? [];
   const prsByDay = new Map<string, typeof cachedPRs>();
   for (const pr of cachedPRs) {
     const day = pr.mergedAt.slice(0, 10);
@@ -152,13 +163,19 @@ function renderDays(year: number, monthSlug: string) {
     </tr>`;
   }).join('');
 
-  const savedPct = Number(localStorage.getItem(`pkup-pct:${year}/${monthSlug}`) ?? '50');
+  const savedPct = Number(localStorage.getItem(`pkup-pct:${username}:${year}/${monthSlug}`) ?? '50');
 
   main.innerHTML = `
     <div class="pkup-header">
       <div class="pkup-header-top">
         <div class="pkup-period">PKUP ${fmtDate(periodStart)} – ${fmtDate(periodEnd)}</div>
         <div class="pkup-header-actions">
+          <div class="pkup-user-wrap">
+            <label class="pkup-user-label" for="pkup-user">Użytkownik</label>
+            <select id="pkup-user" class="pkup-user-select">
+              <option value="${username}">${username}</option>
+            </select>
+          </div>
           <div class="pkup-pct-wrap">
             <label class="pkup-pct-label" for="pkup-pct">% pracy twórczej</label>
             <div class="pkup-pct-input-wrap">
@@ -211,6 +228,21 @@ function renderDays(year: number, monthSlug: string) {
     </table>`;
 
   const pctInput = main.querySelector<HTMLInputElement>('#pkup-pct')!;
+  const userSelect = main.querySelector<HTMLSelectElement>('#pkup-user')!;
+
+  fetchUsers().then(users => {
+    if (!users.length) return;
+    const hasCurrent = users.some(u => u.login === username);
+    const list = hasCurrent ? users : [{ login: username }, ...users];
+    userSelect.innerHTML = list
+      .map(u => `<option value="${u.login}"${u.login === username ? ' selected' : ''}>${u.login}</option>`)
+      .join('');
+  });
+
+  userSelect.addEventListener('change', () => {
+    setUsername(userSelect.value);
+    render();
+  });
 
   function updateSummary() {
     const praca = main.querySelectorAll<HTMLInputElement>('.day-check--praca:checked').length;
@@ -228,7 +260,7 @@ function renderDays(year: number, monthSlug: string) {
 
   pctInput.addEventListener('input', () => {
     const pct = Math.min(100, Math.max(1, Number(pctInput.value) || 100));
-    localStorage.setItem(`pkup-pct:${year}/${monthSlug}`, String(pct));
+    localStorage.setItem(`pkup-pct:${username}:${year}/${monthSlug}`, String(pct));
     updateSummary();
     rerenderPkupTable();
   });
@@ -271,7 +303,7 @@ function renderDays(year: number, monthSlug: string) {
     const arrow = (key: SortKey) =>
       sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
 
-    const prCheckKey = `pkup-pr-checked:${isoStart}..${isoEnd}`;
+    const prCheckKey = `pkup-pr-checked:${username}:${isoStart}..${isoEnd}`;
     const prChecked: Record<number, boolean> = JSON.parse(localStorage.getItem(prCheckKey) ?? '{}');
 
     const rows = sorted.map(pr => {
@@ -387,7 +419,7 @@ function renderDays(year: number, monthSlug: string) {
 
       table.querySelector('.btn-export')!.addEventListener('click', () => {
         const monthNum = String(MONTHS.findIndex(m => m.slug === monthSlug) + 1).padStart(2, '0');
-        exportXlsx(reportData, year, monthNum, monthSlug, import.meta.env['VITE_USERNAME'] ?? 'pkup', fmtDate(periodStart), fmtDate(periodEnd));
+        exportXlsx(reportData, year, monthNum, monthSlug, username, fmtDate(periodStart), fmtDate(periodEnd));
       });
 
       main.querySelector('.days-table')!.insertAdjacentElement('beforebegin', table);
@@ -441,7 +473,7 @@ function renderDays(year: number, monthSlug: string) {
     const prev = btnGithub.textContent;
     btnGithub.textContent = 'Ładowanie…';
     try {
-      const prs = await fetchPRs(isoStart, isoEnd);
+      const prs = await fetchPRs(username, isoStart, isoEnd);
       renderPRList(prs);
       setLoaded(prs.length);
     } catch (err) {
@@ -454,7 +486,7 @@ function renderDays(year: number, monthSlug: string) {
     }
   }
 
-  const cached = loadPRs(isoStart, isoEnd);
+  const cached = loadPRs(username, isoStart, isoEnd);
   if (cached) {
     renderPRList(cached);
     setLoaded(cached.length);
@@ -484,7 +516,7 @@ function renderDays(year: number, monthSlug: string) {
         delete state[iso];
       }
 
-      saveState(year, monthSlug, state);
+      saveState(username, year, monthSlug, state);
       updateSummary();
     });
   });

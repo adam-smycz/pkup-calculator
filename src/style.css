@@ -124,10 +124,33 @@ main {
   white-space: nowrap;
 }
 
-.pkup-pct-wrap {
+.pkup-pct-wrap,
+.pkup-user-wrap {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.pkup-user-label {
+  font-size: 0.8rem;
+  color: #777;
+  white-space: nowrap;
+}
+
+.pkup-user-select {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  border: 1.5px solid #d0d0d0;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  outline: none;
+}
+
+.pkup-user-select:focus {
+  border-color: #999;
 }
 
 .pkup-pct-label {

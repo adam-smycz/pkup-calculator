@@ -13,12 +13,34 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       {
+        name: 'github-users',
+        configureServer(server) {
+          server.middlewares.use('/api/github-users', (_req: IncomingMessage, res: ServerResponse) => {
+            try {
+              const raw = execSync(
+                `gh api 'orgs/${GITHUB_ORG}/members?per_page=100' --paginate`,
+                { encoding: 'utf-8' }
+              );
+              const rawMembers: { login: string }[] = JSON.parse(raw);
+              const members = rawMembers.map(m => ({ login: m.login }));
+              members.sort((a, b) => a.login.localeCompare(b.login));
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(members));
+            } catch (err) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: String(err) }));
+            }
+          });
+        },
+      },
+      {
         name: 'github-prs',
         configureServer(server) {
           server.middlewares.use('/api/github-prs', (req: IncomingMessage, res: ServerResponse) => {
             const url = new URL(req.url!, 'http://localhost');
             const start = url.searchParams.get('start');
             const end   = url.searchParams.get('end');
+            const username = url.searchParams.get('username') || GITHUB_USERNAME;
 
             if (!start || !end) {
               res.statusCode = 400;
@@ -28,7 +50,7 @@ export default defineConfig(({ mode }) => {
 
             try {
               const raw = execSync(
-                `gh search prs --author ${GITHUB_USERNAME} --owner ${GITHUB_ORG} --merged --merged-at ${start}..${end} --json number,title,url,repository,closedAt --limit 100`,
+                `gh search prs --author ${username} --owner ${GITHUB_ORG} --merged --merged-at ${start}..${end} --json number,title,url,repository,closedAt --limit 100`,
                 { encoding: 'utf-8' }
               );
 
