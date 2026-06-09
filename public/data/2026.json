@@ -1,0 +1,19 @@
+{
+  "year": 2026,
+  "holidays": [
+    { "date": "2026-01-01", "name": "Nowy Rok, Świętej Bożej Rodzicielki Maryi" },
+    { "date": "2026-01-06", "name": "Trzech Króli (Objawienie Pańskie)" },
+    { "date": "2026-04-05", "name": "Wielkanoc" },
+    { "date": "2026-04-06", "name": "Poniedziałek Wielkanocny" },
+    { "date": "2026-05-01", "name": "Święto Pracy" },
+    { "date": "2026-05-03", "name": "Święto Konstytucji 3 Maja" },
+    { "date": "2026-05-24", "name": "Zesłanie Ducha Świętego (Zielone Świątki)" },
+    { "date": "2026-06-04", "name": "Boże Ciało" },
+    { "date": "2026-08-15", "name": "Święto Wojska Polskiego, Wniebowzięcie NMP" },
+    { "date": "2026-11-01", "name": "Wszystkich Świętych" },
+    { "date": "2026-11-11", "name": "Święto Niepodległości" },
+    { "date": "2026-12-24", "name": "Wigilia Bożego Narodzenia" },
+    { "date": "2026-12-25", "name": "Boże Narodzenie (pierwszy dzień)" },
+    { "date": "2026-12-26", "name": "Boże Narodzenie (drugi dzień)" }
+  ]
+}
